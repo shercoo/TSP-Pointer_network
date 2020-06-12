@@ -1,14 +1,29 @@
 import torch
-import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from torch.autograd import Variable
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 import torch.backends.cudnn as cudnn
-from torch.nn import Parameter
 import copy
+import argparse
+
+parser=argparse.ArgumentParser(description="Basic Pointer Network.")
+parser.add_argument('--seq_len', default=10, type=int, choices=[5,10,20])
+parser.add_argument('--load', default=False, action='store_true')
+parser.add_argument('--save', default=False, action='store_true')
+args=vars(parser.parse_args())
+
+SEQ_LEN = args['seq_len']
+MAX_EPOCHS = 10000
+INPUT_DIM = 2
+HIDDEN_DIM = 512
+BATCH_SIZE = 128
+LEARNING_RATE = 0.0005
+ENCODER_LAYERS = 2
+LOAD_FROM_EXISTED_MODEL = args['load']
+SAVE_MODEL=args['save']
+
 
 if torch.cuda.is_available():
     USE_CUDA = True
@@ -123,10 +138,11 @@ class Trainer:
         self.CEL = torch.nn.CrossEntropyLoss()
         self.episode = 0
         self.seq_len = 0
-        self.filename = "5mydata.pt"
+        self.filename ="../model/"+str(SEQ_LEN)+"mydata.pt"
         if from_former_model:
             self.load_model()
-        self.outf=open("20result.txt","w")
+        if SAVE_MODEL:
+            self.outf=open("../result/"+str(SEQ_LEN)+"prs_result.txt","w")
 
     def train(self, input, ground_truth):
         self.seq_len = input.shape[1]
@@ -149,7 +165,7 @@ class Trainer:
             print(loss.data)
             self.outf.write(str(self.episode) + " " +self.check_result(input, output, ground_truth)+" "+"{:.12f}\n".format(loss.data))
 
-        if self.episode % 200 == 0:
+        if SAVE_MODEL and self.episode % 200 == 0:
             self.save_model()
 
     def beam_search(self,output,beam_size):
@@ -293,18 +309,7 @@ class TSPdataset(Dataset):
         return input, ground_truth
 
 
-MAX_EPOCHS = 10000
-SEQ_LEN = 5
-INPUT_DIM = 2
-HIDDEN_DIM = 512
-BATCH_SIZE = 64
-LEARNING_RATE = 0.0005
-ENCODER_LAYERS = 2
-LOAD_FROM_EXISTED_MODEL = True
-
-from Data_Generator import TSPDataset
-dataset = TSPdataset("tsp_5-20_train/tsp_all_len" + str(SEQ_LEN) + ".txt", SEQ_LEN)
-# dataset=TSPDataset(10000,SEQ_LEN)
+dataset = TSPdataset("../train/tsp_correct_" + str(SEQ_LEN) + ".txt", SEQ_LEN)
 dataloader = DataLoader(dataset, shuffle=True, batch_size=BATCH_SIZE)
 
 import warnings
@@ -327,25 +332,3 @@ for i in range(MAX_EPOCHS):
         # print(ground_truth)
         trainer.train(input, ground_truth)
 
-
-    # iterator = tqdm(dataloader, unit='Batch')
-    # for i_batch, sample_batched in enumerate(iterator):
-    #     iterator.set_description('Batch %i/%i' % (i+1, MAX_EPOCHS))
-    #
-    #     train_batch = torch.tensor(sample_batched['Points'])
-    #     target_batch = torch.tensor(sample_batched['Solution'])
-    #
-    #     if USE_CUDA:
-    #         train_batch = train_batch.cuda()
-    #         target_batch = target_batch.cuda()
-    #
-    #     trainer.train(train_batch,target_batch)
-
-    #
-    # for i_batch, sample_batched in dataloader:
-    #     print(type(i_batch))
-    #     print(type(sample_batched))
-    #     input = torch.tensor(sample_batched['Points'])
-    #     ground_truth = torch.tensor(sample_batched['Solution'])
-    #     # print(target_batch.shape)
-    #     trainer.train(input,ground_truth)

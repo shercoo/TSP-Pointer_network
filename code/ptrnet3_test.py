@@ -9,6 +9,21 @@ from torch.utils.data import DataLoader
 import torch.backends.cudnn as cudnn
 from torch.nn import Parameter
 import copy
+import argparse
+
+parser=argparse.ArgumentParser(description="Basic Pointer Network Tester.")
+parser.add_argument('--seq_len', default=10, type=int, choices=[5,10,20,40,50])
+args=vars(parser.parse_args())
+
+SEQ_LEN = args['seq_len']
+MAX_EPOCHS = 1
+INPUT_DIM = 2
+HIDDEN_DIM = 512
+BATCH_SIZE = 128
+LEARNING_RATE = 0.0005
+ENCODER_LAYERS = 2
+LOAD_FROM_EXISTED_MODEL = True
+
 
 if torch.cuda.is_available():
     USE_CUDA = True
@@ -152,7 +167,7 @@ class Tester:
         self.tot_ans=0.0
         self.tot_len=0.0
         self.seq_len = 0
-        self.filename = "20mydata.pt"
+        self.filename = "../model/" + str(20 if SEQ_LEN>=20 else SEQ_LEN) + "mydata.pt"
         if from_former_model:
             self.load_model()
 
@@ -185,10 +200,6 @@ class Tester:
 
         return ans_length/batch_size;
 
-
-    def save_model(self):
-        torch.save(self.ptrNet.state_dict(), self.filename)
-        print("Saved model")
 
     def load_model(self):
         self.ptrNet.load_state_dict(torch.load(self.filename,map_location=torch.device('cpu')))
@@ -230,19 +241,8 @@ class TSPdataset(Dataset):
         return input, tour_len
 
 
-MAX_EPOCHS = 1
-SEQ_LEN = 50
-INPUT_DIM = 2
-HIDDEN_DIM = 512
-BATCH_SIZE = 128
-LEARNING_RATE = 0.0005
-ENCODER_LAYERS = 2
-LOAD_FROM_EXISTED_MODEL = True
-TRAIN=False
 
-from Data_Generator import TSPDataset
-dataset = TSPdataset("test_data/tsp" + str(SEQ_LEN) + "_testdata.txt", SEQ_LEN)
-# dataset=TSPDataset(10000,SEQ_LEN)
+dataset = TSPdataset("../test_data/tsp" + str(SEQ_LEN) + "_testdata.txt", SEQ_LEN)
 dataloader = DataLoader(dataset, shuffle=True, batch_size=BATCH_SIZE)
 
 import warnings
@@ -252,11 +252,6 @@ tester = Tester(BATCH_SIZE,INPUT_DIM, HIDDEN_DIM, ENCODER_LAYERS, LEARNING_RATE,
 
 for i in range(MAX_EPOCHS):
     for input, optimal_len in dataloader:
-        # if input.shape[0] != BATCH_SIZE:
-        #     break
-        # print(input.shape)
-        # print(ground_truth.shape)
-        # print(input)
         if USE_CUDA:
             input = input.cuda()
         # print(ground_truth)
